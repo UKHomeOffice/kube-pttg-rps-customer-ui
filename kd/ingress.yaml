@@ -19,4 +19,4 @@ spec:
   tls:
   - hosts:
     - rps.customer.{{.DNS_PREFIX}}pttg.homeoffice.gov.uk
-    secretName: letsencrypt-tls
+    secretName: letsencrypt-pttg-rps-customer-tls
