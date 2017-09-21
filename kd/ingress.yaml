@@ -1,0 +1,22 @@
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    kubernetes.io/tls-acme: "true"
+    ingress.kubernetes.io/secure-backends: "true"
+    ingress.kubernetes.io/whitelist-source-range: "{{.WHITELIST}}"
+  name: pttg-rps-customer-ui
+spec:
+  rules:
+  - host: rps.customer.{{.DNS_PREFIX}}pttg.homeoffice.gov.uk
+    http:
+      paths:
+      - backend:
+          serviceName: pttg-rps-customer-ui
+          servicePort: 443
+        path: /
+  tls:
+  - hosts:
+    - rps.customer.{{.DNS_PREFIX}}pttg.homeoffice.gov.uk
+    secretName: letsencrypt-pttg-rps-customer-tls

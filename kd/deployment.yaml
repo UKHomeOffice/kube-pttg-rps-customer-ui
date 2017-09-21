@@ -1,0 +1,137 @@
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: pttg-rps-customer-ui
+  labels:
+    version: {{.VERSION}}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: pttg-rps-customer-ui
+  template:
+    metadata:
+      labels:
+        name: pttg-rps-customer-ui
+        version: {{.VERSION}}
+    spec:
+      containers:
+      - name: redis
+        image: quay.io/ukhomeofficedigital/redis:latest
+        ports:
+        - containerPort: 6379
+        resources:
+          limits:
+            cpu: "0.1"
+        volumeMounts:
+        - mountPath: /var/lib/redis
+          name: data
+      - name: vault-sidekick
+        image: quay.io/ukhomeofficedigital/vault-sidekick:v0.2.0
+        imagePullPolicy: Always
+        resources:
+         limits:
+          memory: "100Mi"
+          cpu: 100m
+         requests:
+          memory: "50Mi"
+          cpu: 100m
+        args:
+          - -output=/etc/nginx/secrets
+          - -tls-skip-verify=true
+          - -cn=pki:services/${NAMESPACE}/pki/issue/default:common_name=pttg-rps-customer-ui.${NAMESPACE}.svc.cluster.local,file=/etc/nginx/secrets/pttg-rps-customer-ui,fmt=bundle
+        env:
+          - name: VAULT_ADDR
+            value: "https://vault.vault.svc.cluster.local:8200"
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: VAULT_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: store-token
+                key: token
+        volumeMounts:
+          - mountPath: /etc/nginx/secrets
+            name: secrets
+      - name: proxy
+        image: quay.io/ukhomeofficedigital/pttg-nginx-proxy:v3.1.3a
+        resources:
+         limits:
+          memory: "100Mi"
+          cpu: 100m
+         requests:
+          memory: "50Mi"
+          cpu: 100m
+        env:
+          - name: PROXY_SERVICE_HOST
+            value: '127.0.0.1'
+          - name: PROXY_SERVICE_PORT
+            value: '8080'
+          - name: NAXSI_USE_DEFAULT_RULES
+            value: 'FALSE'
+          - name: ENABLE_UUID_PARAM
+            value: 'FALSE'
+          - name: HTTPS_REDIRECT
+            value: 'FALSE'
+          - name: SERVER_CERT
+            value: /etc/nginx/secrets/pttg-rps-customer-ui-bundle.pem
+          - name: SERVER_KEY
+            value: /etc/nginx/secrets/pttg-rps-customer-ui-key.pem
+        volumeMounts:
+          - name: secrets
+            mountPath: /etc/nginx/secrets
+            readOnly: true
+        ports:
+          - name: https
+            containerPort: 10443
+      - name: pttg-rps-customer-ui
+        image: quay.io/ukhomeofficedigital/pttg-rps-customer-ui:{{.VERSION}}
+        env:
+          - name: API_ROOT
+            value: "https://pttg-rps-api.pt-i-{{.ENVIRONMENT}}.svc.cluster.local"
+          - name: CA_CERTS_PATH
+            value: "/data/pttg-rps-customer-ui-ca.pem"
+        resources:
+          limits:
+            cpu: 1000m
+            memory: 400Mi
+          requests:
+            cpu: 200m
+            memory: 100Mi
+        ports:
+          - name: http
+            containerPort: 8080
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+            httpHeaders:
+              - name: X-probe
+                value: kubelet
+          initialDelaySeconds: 20
+          periodSeconds: 20
+          timeoutSeconds: 10
+        readinessProbe:
+            httpGet:
+              path: /readiness
+              port: http
+              httpHeaders:
+                - name: X-probe
+                  value: kubelet
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            timeoutSeconds: 10
+        imagePullPolicy: Always
+        volumeMounts:
+          - mountPath: /data
+            name: secrets
+            readOnly: true
+      volumes:
+      - name: secrets
+        emptyDir:
+          medium: "Memory"
+      - name: data
+        emptyDir: {}
