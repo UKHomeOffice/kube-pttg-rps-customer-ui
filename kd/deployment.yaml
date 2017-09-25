@@ -94,6 +94,12 @@ spec:
             value: "https://pttg-rps-api.pt-i-{{.ENVIRONMENT}}.svc.cluster.local"
           - name: CA_CERTS_PATH
             value: "/data/pttg-rps-customer-ui-ca.pem"
+          - name: PORT
+            value: "8080"
+          - name: NODE_ENV
+            value: "production"
+          - name: SESSION_SECRET
+            value: "verusquidfactum"
         resources:
           limits:
             cpu: 1000m
