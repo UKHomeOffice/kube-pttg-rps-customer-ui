@@ -118,7 +118,7 @@ spec:
               - name: X-probe
                 value: kubelet
           initialDelaySeconds: 20
-          periodSeconds: 20
+          periodSeconds: 200
           timeoutSeconds: 10
         readinessProbe:
             httpGet:
@@ -128,7 +128,7 @@ spec:
                 - name: X-probe
                   value: kubelet
             initialDelaySeconds: 20
-            periodSeconds: 20
+            periodSeconds: 200
             timeoutSeconds: 10
         imagePullPolicy: Always
         volumeMounts:
